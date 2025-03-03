@@ -6,15 +6,15 @@ show_help() {
   cat << EOF
 Usage: gh task [options]
 
-A GitHub CLI extension to find and execute tasks from Taskfiles in local or remote repositories.
+A GitHub CLI extension to find and execute tasks from Taskfiles in the .github directory of repositories.
 
 Options:
-  -r, --remote OWNER/REPO   Search for Taskfiles in a remote repository
+  -r, --remote OWNER/REPO   Search for Taskfiles in a remote repository's .github directory
   -h, --help                Show this help message
 
 Examples:
-  gh task                   Search for Taskfiles in the current repository
-  gh task -r octocat/Hello-World   Search for Taskfiles in the octocat/Hello-World repository
+  gh task                   Search for Taskfiles in the current repository's .github directory
+  gh task -r octocat/Hello-World   Search for Taskfiles in the octocat/Hello-World repository's .github directory
 EOF
 }
 
@@ -40,10 +40,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Function to find Taskfiles in a directory
-find_taskfiles() {
+# Function to find Taskfiles in the .github directory
+find_github_taskfiles() {
   local dir="$1"
-  find "$dir" -type f -name "Taskfile.yml" -o -name "taskfile.yml" -o -name "Taskfile.yaml" -o -name "taskfile.yaml" | sort
+  if [ -d "$dir/.github" ]; then
+    find "$dir/.github" -type f -name "Taskfile.yml" -o -name "taskfile.yml" -o -name "Taskfile.yaml" -o -name "taskfile.yaml" | sort
+  else
+    echo ""
+  fi
 }
 
 # Function to extract tasks from a Taskfile
@@ -55,7 +59,7 @@ extract_tasks() {
 # Main logic
 if [ -n "$REMOTE_REPO" ]; then
   # Handle remote repository
-  echo "Searching for Taskfiles in $REMOTE_REPO..."
+  echo "Searching for Taskfiles in $REMOTE_REPO's .github directory..."
   
   # Create a temporary directory
   TMP_DIR=$(mktemp -d)
@@ -64,23 +68,20 @@ if [ -n "$REMOTE_REPO" ]; then
   # Clone the repository (shallow clone to save time)
   gh repo clone "$REMOTE_REPO" "$TMP_DIR" -- --depth 1 >/dev/null 2>&1 || { echo "Error: Failed to clone repository $REMOTE_REPO"; exit 1; }
   
-  # Find Taskfiles
-  TASKFILES=$(find_taskfiles "$TMP_DIR")
+  # Find Taskfiles in .github directory
+  TASKFILES=$(find_github_taskfiles "$TMP_DIR")
 else
   # Handle local repository
   # Get git root directory
   GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Error: Not in a git repository"; exit 1; }
   
-  # Find Taskfiles with priority to .github directory
-  GITHUB_TASKFILES=$(find_taskfiles "$GIT_ROOT/.github")
-  OTHER_TASKFILES=$(find_taskfiles "$GIT_ROOT" | grep -v "/.github/")
-  TASKFILES="$GITHUB_TASKFILES"$'\n'"$OTHER_TASKFILES"
-  TASKFILES=$(echo "$TASKFILES" | grep -v "^$")
+  # Find Taskfiles in .github directory
+  TASKFILES=$(find_github_taskfiles "$GIT_ROOT")
 fi
 
 # Check if any Taskfiles were found
 if [ -z "$TASKFILES" ]; then
-  echo "No Taskfiles found."
+  echo "No Taskfiles found in the .github directory."
   exit 1
 fi
 
