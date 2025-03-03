@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -e
+
+# Help text
+show_help() {
+  cat << EOF
+Usage: gh task [options]
+
+A GitHub CLI extension to find and execute tasks from Taskfiles in local or remote repositories.
+
+Options:
+  -r, --remote OWNER/REPO   Search for Taskfiles in a remote repository
+  -h, --help                Show this help message
+
+Examples:
+  gh task                   Search for Taskfiles in the current repository
+  gh task -r octocat/Hello-World   Search for Taskfiles in the octocat/Hello-World repository
+EOF
+}
+
+# Parse arguments
+REMOTE_REPO=""
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    -r|--remote)
+      REMOTE_REPO="$2"
+      shift
+      shift
+      ;;
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      show_help
+      exit 1
+      ;;
+  esac
+done
+
+# Function to find Taskfiles in a directory
+find_taskfiles() {
+  local dir="$1"
+  find "$dir" -type f -name "Taskfile.yml" -o -name "taskfile.yml" -o -name "Taskfile.yaml" -o -name "taskfile.yaml" | sort
+}
+
+# Function to extract tasks from a Taskfile
+extract_tasks() {
+  local taskfile="$1"
+  task -t "$taskfile" -l -j 2>/dev/null | jq -r ".tasks[] | \"\(.name) - \(.desc) [\(.location.taskfile)]\"" || echo "Error: Failed to extract tasks from $taskfile"
+}
+
+# Main logic
+if [ -n "$REMOTE_REPO" ]; then
+  # Handle remote repository
+  echo "Searching for Taskfiles in $REMOTE_REPO..."
+  
+  # Create a temporary directory
+  TMP_DIR=$(mktemp -d)
+  trap 'rm -rf "$TMP_DIR"' EXIT
+  
+  # Clone the repository (shallow clone to save time)
+  gh repo clone "$REMOTE_REPO" "$TMP_DIR" -- --depth 1 >/dev/null 2>&1 || { echo "Error: Failed to clone repository $REMOTE_REPO"; exit 1; }
+  
+  # Find Taskfiles
+  TASKFILES=$(find_taskfiles "$TMP_DIR")
+else
+  # Handle local repository
+  # Get git root directory
+  GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Error: Not in a git repository"; exit 1; }
+  
+  # Find Taskfiles with priority to .github directory
+  GITHUB_TASKFILES=$(find_taskfiles "$GIT_ROOT/.github")
+  OTHER_TASKFILES=$(find_taskfiles "$GIT_ROOT" | grep -v "/.github/")
+  TASKFILES="$GITHUB_TASKFILES"$'\n'"$OTHER_TASKFILES"
+  TASKFILES=$(echo "$TASKFILES" | grep -v "^$")
+fi
+
+# Check if any Taskfiles were found
+if [ -z "$TASKFILES" ]; then
+  echo "No Taskfiles found."
+  exit 1
+fi
+
+# Extract tasks from all Taskfiles and create a selection menu
+ALL_TASKS=""
+while IFS= read -r taskfile; do
+  tasks=$(extract_tasks "$taskfile")
+  if [ -n "$tasks" ]; then
+    ALL_TASKS="$ALL_TASKS"$'\n'"$tasks"
+  fi
+done <<< "$TASKFILES"
+ALL_TASKS=$(echo "$ALL_TASKS" | grep -v "^$")
+
+# Use fzf to select a task
+SELECTED=$(echo "$ALL_TASKS" | fzf --height 40% --reverse --prompt="Select a task to run: ")
+
+if [ -n "$SELECTED" ]; then
+  # Extract task name and taskfile path
+  TASK_NAME=$(echo "$SELECTED" | sed -E 's/^([^ ]+) - .* \[(.*)\]$/\1/')
+  TASKFILE=$(echo "$SELECTED" | sed -E 's/^([^ ]+) - .* \[(.*)\]$/\2/')
+  
+  echo "Executing: task -t \"$TASKFILE\" \"$TASK_NAME\""
+  task -t "$TASKFILE" "$TASK_NAME"
+else
+  echo "No task selected."
+  exit 0
+fi
