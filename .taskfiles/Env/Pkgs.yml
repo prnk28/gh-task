@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+silent: true
+vars:
+  GH_EXTENSIONS: valeriobelli/gh-milestone mona-actions/gh-repo-stats
+  GO_PKGS: github.com/junegunn/fzf github.com/charmbracelet/gum
+  CARGO_PKGS: csvlens ripgrep
+
+tasks:
+  install:
+    cmds:
+      - task: install-go-pkgs
+      - task: install-cargo-pkgs
+      - task: install-gh-extensions
+
+  install-gh-extensions:
+    internal: true
+    platforms: [darwin, linux]
+    cmds:
+      - for: { var: GH_EXTENSIONS }
+        cmd: gh extension install {{.NAME}}
+
+  install-go-pkgs:
+    internal: true
+    platforms: [darwin, linux]
+    cmds:
+      - for: { var: GO_PKGS }
+        cmd: go install {{.NAME}}@latest
+
+  install-cargo-pkgs:
+    internal: true
+    platforms: [darwin, linux]
+    cmds:
+      - for: { var: CARGO_PKGS }
+        cmd: cargo install {{.NAME}}

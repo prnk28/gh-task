@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+vars:
+  ROOT_DIR:
+    sh: git rev-parse --show-toplevel
+
+tasks:
+  build:
+    desc: Build the gh-task binary
+    aliases: [b]
+    cmds:
+      - go build -o gh-task main.go
+      - task: logi-"Build completed"
+      - gh extension remove gh-task
+      - task: logw-"Removing previous version"
+      - gh extension install . --force
+      - task: logi-"Install completed"
+    silent: true
+
+  generate:
+    desc: Generate the gh-task binary
+    aliases: [g]
+    cmds:
+      - defer: rm -rf types
+      - task: mock:fetch-data
+      - task: mock:jsonpkl-cards.json
+      - task: mock:jsonpkl-issues.json
+      - task: mock:jsonpkl-milestones.json
+      - task: mock:jsonpkl-prs.json
+      - task: mock:jsonpkl-projects.json
+      - task: mock:jsonpkl-releases.json
+      - task: mock:jsonpkl-user.json
+
+  test:
+    desc: Run the tests
+    aliases: [t]
+    cmds:
+      - go test -v ./...
+    silent: true
+
+includes:
+  log:
+    taskfile: ./Util/Log.yml
+    dir: "{{.ROOT_DIR}}"
+    flatten: true
+  mock:
+    taskfile: ./Util/Mock.yml
+    dir: "{{.ROOT_DIR}}"
+    internal: true
+  pkgs:
+    taskfile: ./Env/Pkgs.yml
+    dir: "{{.ROOT_DIR}}"
+    internal: true
