@@ -4,6 +4,7 @@ import (
 	"github.com/cli/go-gh"
 	"github.com/cli/go-gh/pkg/api"
 	graphql "github.com/cli/shurcooL-graphql"
+	"github.com/prnk28/gh-task/internal/ghc"
 )
 
 // listOrgs returns a list of organization names the authenticated user is a member of
@@ -88,4 +89,19 @@ func fetchRemainingOrgs(client api.GQLClient, orgs *[]string, cursor string) err
 	}
 
 	return nil
+}
+
+func filterActiveOrgs() ([]string, error) {
+	// Create new context if it doesn't exist
+	orgs, err := listOrgs()
+	if err != nil {
+		return nil, err
+	}
+	activeOrgs := make([]string, 0)
+	for _, org := range orgs {
+		if ghc.OrgHasRepo(org, ".github") {
+			activeOrgs = append(activeOrgs, org)
+		}
+	}
+	return activeOrgs, nil
 }

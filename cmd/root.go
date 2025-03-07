@@ -28,24 +28,22 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, err := ctx.Get(cmd)
+		c, err := ctx.Get(cmd)
 		if err != nil {
 			cmd.PrintErr(err)
 			return
 		}
-		cmd.Println(ctx.String())
-		ok := ghc.OrgHasRepo(ctx.Current.RepoOwner, ".github")
+		ok := ghc.OrgHasRepo(c.Current.RepoOwner, ".github")
 		if !ok {
 			cmd.Println("gh-task: .github repo required")
 			return
 		}
-
-		out, err := ghc.QueryProjectList.Exec()
+		tfs, err := c.GetTaskfile()
 		if err != nil {
 			cmd.PrintErr(err)
 			return
 		}
-		cmd.Println(out)
+		cmd.Println(tfs)
 	},
 }
 

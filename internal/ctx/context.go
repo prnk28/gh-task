@@ -3,8 +3,9 @@ package ctx
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
-	"github.com/cli/go-gh"
 	"github.com/spf13/cobra"
 )
 
@@ -15,26 +16,48 @@ type contextKey string
 const ctxKey = contextKey("gh-pm-context")
 
 type Context struct {
-	Orgs     []string        `json:"orgs"`
-	Name     string          `json:"name"`
-	Login    string          `json:"login"`
-	Current  Current         `json:"current"`
-	PeerDeps map[string]bool `json:"peerdeps"`
+	ConfigHome string   `json:"config_home"`
+	Orgs       []string `json:"orgs"`
+	Name       string   `json:"name"`
+	Login      string   `json:"login"`
+	Current    *Current `json:"current"`
+}
+
+func initContext(cmdCtx context.Context, cmd *cobra.Command, curr *Current) (*Context, error) {
+	// Fetch XDG config home
+	configHome, err := getAppConfigHome()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create config home if it doesn't exist
+	err = os.MkdirAll(configHome, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create new context if it doesn't exist
+	orgs, err := filterActiveOrgs()
+	if err != nil {
+		return nil, err
+	}
+
+	newCtx := &Context{
+		ConfigHome: configHome,
+		Name:       curr.RepoName,
+		Login:      curr.RepoOwner,
+		Orgs:       orgs,
+		Current:    curr,
+	}
+
+	// Create a new context with our value
+	updatedCtx := context.WithValue(cmdCtx, ctxKey, newCtx)
+	cmd.SetContext(updatedCtx)
+	return newCtx, err
 }
 
 func (c *Context) String() string {
-	return fmt.Sprintf("Context{Orgs: %v, Name: %v, Login: %v, Current: %v, PeerDeps: %v}", c.Orgs, c.Name, c.Login, c.Current, c.PeerDeps)
-}
-
-type Current struct {
-	RepoName  string `json:"repo_name"`
-	RepoOwner string `json:"repo_owner"`
-	Branch    string `json:"branch"`
-	Path      string `json:"path"`
-}
-
-func (c *Current) String() string {
-	return fmt.Sprintf("Current{RepoName: %v, RepoOwner: %v, Branch: %v, Path: %v}", c.RepoName, c.RepoOwner, c.Branch, c.Path)
+	return fmt.Sprintf("Context{Orgs: %v, Name: %v, Login: %v, Current: %v}", c.Orgs, c.Name, c.Login, c.Current)
 }
 
 func Get(cmd *cobra.Command) (*Context, error) {
@@ -47,44 +70,26 @@ func Get(cmd *cobra.Command) (*Context, error) {
 
 	// Check if context already exists
 	if existingCtx, ok := cmdCtx.Value(ctxKey).(*Context); ok {
+		fmt.Println("Using existing context")
 		return existingCtx, nil
 	}
 
-	// Create new context if it doesn't exist
-	orgs, err := listOrgs()
+	curr, err := fetchCurrent()
 	if err != nil {
 		return nil, err
 	}
 
-	repo, err := gh.CurrentRepository()
+	newCtx, err := initContext(cmdCtx, cmd, curr)
 	if err != nil {
 		return nil, err
-	}
-	wrkDir, err := WorkingDir()
-	if err != nil {
-		return nil, err
-	}
-	wrkBranch, err := CurrentBranch()
-	branch := ""
-	if err == nil {
-		branch = wrkBranch
-	}
-	deps := checkPeerDeps()
-	newCtx := &Context{
-		Name:  repo.Name(),
-		Login: repo.Owner(),
-		Current: Current{
-			RepoName:  repo.Name(),
-			RepoOwner: repo.Owner(),
-			Path:      wrkDir,
-			Branch:    branch,
-		},
-		Orgs:     orgs,
-		PeerDeps: deps,
 	}
 
 	// Create a new context with our value
 	updatedCtx := context.WithValue(cmdCtx, ctxKey, newCtx)
 	cmd.SetContext(updatedCtx)
 	return newCtx, nil
+}
+
+func (c *Context) GetTaskfile() (string, error) {
+	return filepath.Join(c.ConfigHome, "src", c.Current.RepoOwner, "Taskfile.yml"), nil
 }
