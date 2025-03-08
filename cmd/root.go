@@ -17,15 +17,14 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "task",
-	Short: "GitHub CLI extension for task management",
-	Long: `gh-task is a GitHub CLI extension that helps manage tasks across repositories.
+	Short: "Gh CLI extension for global organization-level taskfile execution",
+	Long: `gh-task is a GitHub CLI extension that helps consolidate taskfiles across repositories.
+	It integrates with organization-level Taskfiles to provide standardized task execution
+	across repositories within an organization. The extension requires a .github repository
+	in the organization to store shared task configurations.
 
-It integrates with organization-level Taskfiles to provide standardized task execution
-across repositories within an organization. The extension requires a .github repository
-in the organization to store shared task configurations.
-
-Usage:
-  gh task [command]`,
+	Usage:
+  	gh task [command]`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
