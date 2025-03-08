@@ -14,9 +14,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var cfgFile string
-var printPath bool
-var cachedTaskfilePath string
+var (
+	cfgFile            string
+	printPath          bool
+	cachedTaskfilePath string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -117,7 +119,7 @@ func getTaskfilePath(cmd *cobra.Command) (string, error) {
 	taskfileDir := filepath.Dir(taskfilePath)
 	if _, err := os.Stat(taskfileDir); os.IsNotExist(err) {
 		// Directory doesn't exist, create it
-		if err := os.MkdirAll(taskfileDir, 0755); err != nil {
+		if err := os.MkdirAll(taskfileDir, 0o755); err != nil {
 			return "", fmt.Errorf("failed to create taskfile directory: %w", err)
 		}
 	}
@@ -129,11 +131,12 @@ func getTaskfilePath(cmd *cobra.Command) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to download organization data: %w", err)
 		}
-		
+
 		// Check again after download
 		if _, err := os.Stat(taskfilePath); os.IsNotExist(err) {
 			return "", fmt.Errorf("taskfile not found at %s even after download", taskfilePath)
 		}
+		cachedTaskfilePath = orgDir
 	}
 
 	// Cache the path for future use

@@ -51,7 +51,7 @@ func mkDirOrg(org string) (string, error) {
 	return taskfilesDir, nil
 }
 
-func downloadOrgData(org string) (string, error) {
+func DownloadOrgData(org string) (string, error) {
 	exists, path, err := orgDirExists(org)
 	if err != nil {
 		return "", err
