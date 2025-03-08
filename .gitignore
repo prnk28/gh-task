@@ -1,2 +1,4 @@
-.taskfiles/.DS_Store
+tmp
+.DS_Store
 gh-task
+.aider*
