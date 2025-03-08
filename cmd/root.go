@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"os"
+	"os/exec"
 
 	"github.com/prnk28/gh-task/internal/ctx"
 	"github.com/prnk28/gh-task/internal/ghc"
@@ -38,12 +39,30 @@ Usage:
 			cmd.Println("gh-task: .github repo required")
 			return
 		}
-		tfs, err := c.GetTaskfile()
+		taskfilePath, err := c.GetTaskfile()
 		if err != nil {
 			cmd.PrintErr(err)
 			return
 		}
-		cmd.Println(tfs)
+
+		// Create the task command with the taskfile flag
+		taskCmd := exec.Command("task", append([]string{"--taskfile", taskfilePath}, args...)...)
+		
+		// Set up pipes for stdin, stdout, and stderr
+		taskCmd.Stdin = os.Stdin
+		taskCmd.Stdout = os.Stdout
+		taskCmd.Stderr = os.Stderr
+		
+		// Run the task command
+		err = taskCmd.Run()
+		if err != nil {
+			cmd.PrintErrf("Error executing task: %v\n", err)
+			// If the command fails with a specific exit code, propagate it
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				os.Exit(exitErr.ExitCode())
+			}
+			os.Exit(1)
+		}
 	},
 }
 
