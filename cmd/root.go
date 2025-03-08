@@ -13,6 +13,7 @@ import (
 )
 
 var cfgFile string
+var printPath bool
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -44,6 +45,12 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		// If print-path flag is set, just print the path and return
+		if printPath {
+			cmd.Println(taskfilePath)
+			return
+		}
+
 		// Create the task command with the taskfile flag
 		taskCmd := exec.Command("task", append([]string{"--taskfile", taskfilePath, "--dir", c.Current.Path}, args...)...)
 
@@ -72,6 +79,10 @@ func Execute() {
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+func init() {
+	rootCmd.Flags().BoolVarP(&printPath, "print-path", "p", false, "Print the path to the Taskfile instead of executing it")
 }
 
 // func init() {
