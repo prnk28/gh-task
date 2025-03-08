@@ -3,15 +3,30 @@ package ctx
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/prnk28/gh-task/internal/ghc"
 )
 
 func getAppConfigHome() (string, error) {
-	xdgHome, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
+	var xdgHome string
+	var err error
+	
+	// On macOS (darwin), use ~/.config instead of ~/Library/Application Support
+	if runtime.GOOS == "darwin" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		xdgHome = filepath.Join(home, ".config")
+	} else {
+		// For other platforms, use the standard UserConfigDir
+		xdgHome, err = os.UserConfigDir()
+		if err != nil {
+			return "", err
+		}
 	}
+	
 	return filepath.Join(xdgHome, "gh-task"), nil
 }
 
