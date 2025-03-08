@@ -10,9 +10,9 @@ tasks:
     desc: Build the gh-task binary
     aliases: [b]
     cmds:
-      - go build -o gh-task main.go
+      - go build -o gh-taskfile main.go
       - task: logi-"Build completed"
-      - gh extension remove gh-task
+      - gh extension remove gh-taskfile
       - task: logw-"Removing previous version"
       - gh extension install . --force
       - task: logi-"Install completed"
