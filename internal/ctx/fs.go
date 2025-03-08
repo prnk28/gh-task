@@ -10,8 +10,7 @@ import (
 
 func getAppConfigHome() (string, error) {
 	var xdgHome string
-	var err error
-	
+
 	// On macOS (darwin), use ~/.config instead of ~/Library/Application Support
 	if runtime.GOOS == "darwin" {
 		home, err := os.UserHomeDir()
@@ -21,12 +20,13 @@ func getAppConfigHome() (string, error) {
 		xdgHome = filepath.Join(home, ".config")
 	} else {
 		// For other platforms, use the standard UserConfigDir
-		xdgHome, err = os.UserConfigDir()
+		home, err := os.UserConfigDir()
 		if err != nil {
 			return "", err
 		}
+		xdgHome = home
 	}
-	
+
 	return filepath.Join(xdgHome, "gh-task"), nil
 }
 
