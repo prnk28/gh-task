@@ -16,13 +16,17 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "task",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "GitHub CLI extension for task management",
+	Long: `gh-task is a GitHub CLI extension that helps manage tasks across repositories.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+It integrates with organization-level Taskfiles to provide standardized task execution
+across repositories within an organization. The extension requires a .github repository
+in the organization to store shared task configurations.
+
+Usage:
+  gh task [command]
+  
+Run without arguments to check for Taskfile availability in the current repository.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
