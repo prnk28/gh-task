@@ -44,7 +44,7 @@ func fetchCurrent() (*Current, error) {
 	currRepo := repo.Name()
 	currOrg := repo.Owner()
 
-	p, err := downloadOrgData(currOrg)
+	p, err := DownloadOrgData(currOrg)
 	if err != nil {
 		return nil, err
 	}
