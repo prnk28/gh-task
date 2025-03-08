@@ -24,9 +24,7 @@ across repositories within an organization. The extension requires a .github rep
 in the organization to store shared task configurations.
 
 Usage:
-  gh task [command]
-  
-Run without arguments to check for Taskfile availability in the current repository.`,
+  gh task [command]`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
