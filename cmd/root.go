@@ -4,8 +4,10 @@ Copyright © 2025 Prad N i@prad.nu
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/prnk28/gh-task/internal/ctx"
 	"github.com/prnk28/gh-task/internal/ghc"
@@ -14,6 +16,7 @@ import (
 
 var cfgFile string
 var printPath bool
+var cachedTaskfilePath string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -29,17 +32,8 @@ var rootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		c, err := ctx.Get(cmd)
-		if err != nil {
-			cmd.PrintErr(err)
-			return
-		}
-		ok := ghc.OrgHasRepo(c.Current.RepoOwner, ".github")
-		if !ok {
-			cmd.Println("gh-task: .github repo required")
-			return
-		}
-		taskfilePath, err := c.GetTaskfile()
+		// Get the taskfile path
+		taskfilePath, err := getTaskfilePath(cmd)
 		if err != nil {
 			cmd.PrintErr(err)
 			return
@@ -52,7 +46,14 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Create the task command with the taskfile flag
-		taskCmd := exec.Command("task", append([]string{"--taskfile", taskfilePath, "--dir", c.Current.Path}, args...)...)
+		currentPath, err := os.Getwd()
+		if err != nil {
+			cmd.PrintErrf("Error getting current directory: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Create the task command with the taskfile flag
+		taskCmd := exec.Command("task", append([]string{"--taskfile", taskfilePath, "--dir", currentPath}, args...)...)
 
 		// Set up pipes for stdin, stdout, and stderr
 		taskCmd.Stdin = os.Stdin
@@ -83,6 +84,61 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().BoolVarP(&printPath, "print-path", "p", false, "Print the path to the Taskfile instead of executing it")
+}
+
+// getTaskfilePath gets the taskfile path with caching for better performance
+func getTaskfilePath(cmd *cobra.Command) (string, error) {
+	// Return cached path if available
+	if cachedTaskfilePath != "" {
+		// Verify the file still exists
+		if _, err := os.Stat(cachedTaskfilePath); err == nil {
+			return cachedTaskfilePath, nil
+		}
+	}
+
+	c, err := ctx.Get(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// Quick check if the organization has a .github repo
+	ok := ghc.OrgHasRepo(c.Current.RepoOwner, ".github")
+	if !ok {
+		return "", fmt.Errorf("gh-task: .github repo required for organization %s", c.Current.RepoOwner)
+	}
+
+	// Get the expected taskfile path
+	taskfilePath, err := c.GetTaskfile()
+	if err != nil {
+		return "", err
+	}
+
+	// Check if the taskfile directory exists before trying to access it
+	taskfileDir := filepath.Dir(taskfilePath)
+	if _, err := os.Stat(taskfileDir); os.IsNotExist(err) {
+		// Directory doesn't exist, create it
+		if err := os.MkdirAll(taskfileDir, 0755); err != nil {
+			return "", fmt.Errorf("failed to create taskfile directory: %w", err)
+		}
+	}
+
+	// Check if the taskfile exists
+	if _, err := os.Stat(taskfilePath); os.IsNotExist(err) {
+		// Taskfile doesn't exist, try to download it
+		orgDir, err := ctx.DownloadOrgData(c.Current.RepoOwner)
+		if err != nil {
+			return "", fmt.Errorf("failed to download organization data: %w", err)
+		}
+		
+		// Check again after download
+		if _, err := os.Stat(taskfilePath); os.IsNotExist(err) {
+			return "", fmt.Errorf("taskfile not found at %s even after download", taskfilePath)
+		}
+	}
+
+	// Cache the path for future use
+	cachedTaskfilePath = taskfilePath
+	return taskfilePath, nil
 }
 
 // func init() {
