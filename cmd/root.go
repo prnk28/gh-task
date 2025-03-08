@@ -46,13 +46,13 @@ Usage:
 		}
 
 		// Create the task command with the taskfile flag
-		taskCmd := exec.Command("task", append([]string{"--taskfile", taskfilePath}, args...)...)
-		
+		taskCmd := exec.Command("task", append([]string{"--taskfile", taskfilePath, "--dir", c.Current.Path}, args...)...)
+
 		// Set up pipes for stdin, stdout, and stderr
 		taskCmd.Stdin = os.Stdin
 		taskCmd.Stdout = os.Stdout
 		taskCmd.Stderr = os.Stderr
-		
+
 		// Run the task command
 		err = taskCmd.Run()
 		if err != nil {
